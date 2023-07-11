@@ -63,16 +63,24 @@ public:
     {
         switch (dish)
         {
+        case none:
+            return "none";
+            break;
         case pizza:
             return "pizza";
+            break;
         case soup:
             return "soup";
+            break;
         case steak:
             return "steak";
+            break;
         case salad:
             return "salad";
+            break;
         case sushi:
             return "sushi";
+
 
         }
     }
@@ -94,9 +102,8 @@ public:
     Order()
     {
         
-        int in = 1 + rand() % 4;
-        setDish(in);
-        setTime(5 + rand() % 10);
+        setDish(1 + rand() % 5);
+        setTime(4 + rand() % 12);
     }
 
 };
@@ -115,15 +122,11 @@ public:
         {
             if (ordersQueue[0] == nullptr)
             {
-                std::this_thread::sleep_for(std::chrono::seconds(5));
+                std::this_thread::sleep_for(std::chrono::seconds(10));
                 getOrder();
             }
             order = ordersQueue[0];
-            for (int i = 0; i < ordersQueue.size() - 2; i++)
-            {
-                ordersQueue[i] = ordersQueue[i+1];
-            }
-            ordersQueue.pop_back();
+            removeOrder();
             kitchen_access.unlock();
             cooking();
         }
@@ -140,6 +143,15 @@ public:
         distribution_access.lock();
         distribution.push_back(order);
         distribution_access.unlock();
+    }
+
+    void removeOrder()
+    {
+        for (int i = 0; i < ordersQueue.size() - 2; i++)
+        {
+            ordersQueue[i] = ordersQueue[i + 1];
+        }
+        ordersQueue.pop_back();
     }
 
     Kitchen()
