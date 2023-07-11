@@ -26,6 +26,33 @@ class Order
 
 public:
     
+    void setDish(int in)
+    {
+        switch (in)
+        {
+        case 1:
+            dish = pizza;
+            break;
+        case 2:
+            dish = soup;
+            break;
+        case 3:
+            dish = steak;
+            break;
+        case 4:
+            dish = salad;
+            break;
+        case 5:
+            dish = sushi;
+            break;
+
+        }
+    }
+
+    void setTime(int inTime)
+    {
+        cookingTime = inTime;
+    }
 
     int getTime()
     {
@@ -50,7 +77,7 @@ public:
         }
     }
 
-    void sentOrderToKitchen(std::vector<Order*> ordersQueue)
+    void sentOrderToKitchen(std::vector<Order*>& ordersQueue)
     {
         if (kitchen_access.try_lock())
         {
@@ -66,27 +93,10 @@ public:
 
     Order()
     {
-        int in = rand() % 5 + 1;
-        switch (in)
-        {
-        case 1:
-            dish = pizza;
-            break;
-        case 2:
-            dish = soup;
-            break;
-        case 3:
-            dish = steak;
-            break;
-        case 4:
-            dish = salad;
-            break;
-        case 5:
-            dish = sushi;
-            break;
         
-        }
-        cookingTime = rand() % 15 + 5;
+        int in = 1 + rand() % 4;
+        setDish(in);
+        setTime(5 + rand() % 10);
     }
 
 };
@@ -95,22 +105,23 @@ class Kitchen
 {
 public:
 
+    std::vector<Order*> ordersQueue;
     Order* order;
     std::vector<Order*> distribution;
 
-    void getOrder(std::vector<Order*> ordersQueue)
+    void getOrder()
     {
         if (kitchen_access.try_lock())
         {
             if (ordersQueue[0] == nullptr)
             {
                 std::this_thread::sleep_for(std::chrono::seconds(5));
-                getOrder(ordersQueue);
+                getOrder();
             }
             order = ordersQueue[0];
-            for (int i = 0; i < ordersQueue.size(); i++)
+            for (int i = 0; i < ordersQueue.size() - 2; i++)
             {
-                ordersQueue[i] = ordersQueue[i];
+                ordersQueue[i] = ordersQueue[i+1];
             }
             ordersQueue.pop_back();
             kitchen_access.unlock();
@@ -119,7 +130,7 @@ public:
         else
         {
             std::this_thread::sleep_for(std::chrono::seconds(5));
-            getOrder(ordersQueue);
+            getOrder();
         }
     }
 
@@ -187,10 +198,8 @@ public:
 
 int main()
 {
-    std::vector<Order*> ordersQueue;
-
     Kitchen* kitchen = new Kitchen();
-    std::thread restaurantOpen(&Kitchen::getOrder, kitchen, ordersQueue);
+    std::thread restaurantOpen(&Kitchen::getOrder, kitchen);
     restaurantOpen.detach();
 
     Courier* courier = new Courier(kitchen);
@@ -200,10 +209,10 @@ int main()
     std::cout << "Restaurant Simulation!\n";
     for (int i = 0; i < 10; i++)
     {
-        std::this_thread::sleep_for(std::chrono::seconds(5 + rand()%10));
+        std::this_thread::sleep_for(std::chrono::seconds(5 + rand()%5));
         Order* order = new Order();
         std::cout << "New order: " << order->getDish() << " in " << order->getTime() << "seconds." << std::endl;
-        order->sentOrderToKitchen(ordersQueue);
+        order->sentOrderToKitchen(kitchen->ordersQueue);
         
     }
 
