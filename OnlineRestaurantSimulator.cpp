@@ -123,8 +123,6 @@ public:
 
     void getOrder()
     {
-        
-
         if (kitchen_access.try_lock())
         {
             
@@ -135,19 +133,22 @@ public:
                 std::this_thread::sleep_for(std::chrono::seconds(10));
                 getOrder();
             }
-            order = ordersQueue[0];
-            std::cout << "Order: " << order->getDish() << " is moved to kitchen." << std::endl;
-            removeOrder();
-            kitchen_access.unlock();
-            
+            else
+            {
+                order = ordersQueue[0];
+                std::cout << "Order: " << order->getDish() << " is moved to kitchen." << std::endl;
+                removeOrder();
+                kitchen_access.unlock();
+                cooking();
+                
+            }
         }
         else
         {
             std::this_thread::sleep_for(std::chrono::seconds(5));
             getOrder();
         }
-        cooking();
-        sendOrderToDelivery();
+        
     }
 
     void cooking()
@@ -155,17 +156,16 @@ public:
         
         std::this_thread::sleep_for(std::chrono::seconds(order->getTime()));
         std::cout << "Order: " << order->getDish() << " is ready." << std::endl;
-        
+        sendOrderToDelivery();
     }
 
     void sendOrderToDelivery()
     {
-
         if (distribution_access.try_lock())
         {
-            std::cout << "Order: " << order->getDish() << " is ready." << std::endl;
             distribution.push_back(order);
             distribution_access.unlock();
+            std::cout << "Order: " << order->getDish() << " is ready." << std::endl;
         }
         else
         {
@@ -191,36 +191,39 @@ public:
 class Courier
 {
 public:
-    Kitchen* kitchen;
+    //Kitchen* kitchen;
     int deliveryCount;
     
     std::vector<Order*> delivery;
 
-    void getDelivery()
+    void getDelivery(std::vector<Order*> distribution)
     {
+        std::this_thread::sleep_for(std::chrono::seconds(30));
         if (distribution_access.try_lock())
         {
-            if (kitchen->distribution.size() > 0)
+            if (distribution.size() > 0)
             {
-                for (int i = 0; i < kitchen->distribution.size(); i++)
+                for (int i = 0; i < distribution.size(); i++)
                 {
-                    delivery.push_back(kitchen->distribution[i]);
+                    delivery.push_back(distribution[i]);
                     std::cout << delivery[i]->getDish() << " handed over for delivery!" << std::endl;
                 }
-                kitchen->distribution.clear();
+                distribution.clear();
                 distribution_access.unlock();
                 deliveryDone();
             }
             else
             {
-                std::this_thread::sleep_for(std::chrono::seconds(30));
-                getDelivery();
+                distribution_access.unlock();
+                
+                getDelivery(distribution);
             }
+            
         }
         else
         {
-            std::this_thread::sleep_for(std::chrono::seconds(30));
-            getDelivery();
+            
+            getDelivery(distribution);
         }
         
     }
@@ -238,9 +241,9 @@ public:
         delivery.clear();
     }
 
-    Courier(Kitchen* inKitchen)
+    Courier()
     {
-        kitchen = inKitchen;
+        //kitchen = inKitchen;
         deliveryCount = 0;
     }
 };
@@ -251,8 +254,8 @@ int main()
     std::thread restaurantOpen(&Kitchen::getOrder, kitchen);
     restaurantOpen.detach();
 
-    Courier* courier = new Courier(kitchen);
-    std::thread deliweryWorking (&Courier::getDelivery, courier);
+    Courier* courier = new Courier();
+    std::thread deliweryWorking (&Courier::getDelivery, courier, kitchen->distribution);
     deliweryWorking.join();
 
     std::cout << "Restaurant Simulation!\n";
