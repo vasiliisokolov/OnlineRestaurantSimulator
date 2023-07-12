@@ -28,6 +28,8 @@ public:
     
     void setDish(int in)
     {
+        if (in <= 0) in = 1;
+        if (in > 5) in = 5;
         switch (in)
         {
         case 1:
@@ -90,11 +92,14 @@ public:
         if (kitchen_access.try_lock())
         {
             ordersQueue.push_back(this);
+            std::cout << getDish() << " sent to Kitchen!" << std::endl;
             kitchen_access.unlock();
         }
         else
         {
+            std::cout << getDish() << " Not access to Kitchen!" << std::endl;
             std::this_thread::sleep_for(std::chrono::seconds(5));
+
             sentOrderToKitchen(ordersQueue);
         }
     }
@@ -118,40 +123,63 @@ public:
 
     void getOrder()
     {
+        
+
         if (kitchen_access.try_lock())
         {
-            if (ordersQueue[0] == nullptr)
+            kitchen_access.lock();
+            if (ordersQueue.size() == 0 || ordersQueue[0] == nullptr)
             {
+                std::cout << "No orders." << std::endl;
+                kitchen_access.unlock();
                 std::this_thread::sleep_for(std::chrono::seconds(10));
                 getOrder();
             }
             order = ordersQueue[0];
+            std::cout << "Order: " << order->getDish() << " is moved to kitchen." << std::endl;
             removeOrder();
             kitchen_access.unlock();
-            cooking();
+            
         }
         else
         {
             std::this_thread::sleep_for(std::chrono::seconds(5));
             getOrder();
         }
+        cooking();
+        sendOrderToDelivery();
     }
 
     void cooking()
     {
+        
         std::this_thread::sleep_for(std::chrono::seconds(order->getTime()));
-        distribution_access.lock();
-        distribution.push_back(order);
-        distribution_access.unlock();
+        std::cout << "Order: " << order->getDish() << " is ready." << std::endl;
+        
     }
 
+    void sendOrderToDelivery()
+    {
+
+        if (distribution_access.try_lock())
+        {
+            std::cout << "Order: " << order->getDish() << " is ready." << std::endl;
+            distribution.push_back(order);
+            distribution_access.unlock();
+        }
+        else
+        {
+            sendOrderToDelivery();
+        }
+    }
     void removeOrder()
     {
-        for (int i = 0; i < ordersQueue.size() - 2; i++)
+        for (int i = 1; i < ordersQueue.size(); i++)
         {
-            ordersQueue[i] = ordersQueue[i + 1];
+            ordersQueue[i - 1] = ordersQueue[i];
         }
         ordersQueue.pop_back();
+        
     }
 
     Kitchen()
@@ -172,20 +200,29 @@ public:
     {
         if (distribution_access.try_lock())
         {
-            for (int i = 0; i < kitchen->distribution.size(); i++)
+            if (kitchen->distribution.size() > 0)
             {
-                delivery.push_back(kitchen->distribution[i]);
+                for (int i = 0; i < kitchen->distribution.size(); i++)
+                {
+                    delivery.push_back(kitchen->distribution[i]);
+                    std::cout << delivery[i]->getDish() << " handed over for delivery!" << std::endl;
+                }
+                kitchen->distribution.clear();
+                distribution_access.unlock();
+                deliveryDone();
             }
-            kitchen->distribution.clear();
-            distribution_access.unlock();
-            deliveryDone();
+            else
+            {
+                std::this_thread::sleep_for(std::chrono::seconds(30));
+                getDelivery();
+            }
         }
         else
         {
             std::this_thread::sleep_for(std::chrono::seconds(30));
             getDelivery();
         }
-
+        
     }
 
     void deliveryDone()
@@ -223,7 +260,7 @@ int main()
     {
         std::this_thread::sleep_for(std::chrono::seconds(5 + rand()%5));
         Order* order = new Order();
-        std::cout << "New order: " << order->getDish() << " in " << order->getTime() << "seconds." << std::endl;
+        std::cout << "New order: " << order->getDish() << " in " << order->getTime() << " seconds." << std::endl;
         order->sentOrderToKitchen(kitchen->ordersQueue);
         
     }
