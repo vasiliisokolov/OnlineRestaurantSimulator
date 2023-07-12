@@ -208,26 +208,26 @@ public:
 class Courier
 {
 public:
-    //Kitchen* kitchen;
+    Kitchen* kitchen;
     int deliveryCount;
     
     std::vector<Order*> delivery;
 
-    void getDelivery(std::vector<Order*> distribution)
+    void getDelivery()
     {
         while (deliveryCount < 10)
         {
             
             if (distribution_access.try_lock())
             {
-                if (distribution.size() > 0)
+                if (kitchen->distribution.size() > 0)
                 {
-                    for (int i = 0; i < distribution.size(); i++)
+                    for (int i = 0; i < kitchen->distribution.size(); i++)
                     {
-                        delivery.push_back(distribution[i]);
+                        delivery.push_back(kitchen->distribution[i]);
                         std::cout << delivery[i]->getDish() << " handed over for delivery!" << std::endl;
                     }
-                    distribution.clear();
+                    kitchen->distribution.clear();
                     distribution_access.unlock();
                     deliveryDone();
                     std::this_thread::sleep_for(std::chrono::seconds(30));
@@ -262,9 +262,9 @@ public:
         delivery.clear();
     }
 
-    Courier()
+    Courier(Kitchen* inKitchen)
     {
-        //kitchen = inKitchen;
+        kitchen = inKitchen;
         deliveryCount = 0;
     }
 };
@@ -275,12 +275,12 @@ int main()
     std::thread restaurantOpen(&Kitchen::getOrder, kitchen);
     restaurantOpen.detach();
 
-    Courier* courier = new Courier();
-    std::thread deliweryWorking (&Courier::getDelivery, courier, kitchen->distribution);
+    Courier* courier = new Courier(kitchen);
+    std::thread deliweryWorking (&Courier::getDelivery, courier);
     deliweryWorking.detach();
 
     std::cout << "Restaurant Simulation!\n";
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < 10 && courier->deliveryCount < 10; i++)
     {
         std::this_thread::sleep_for(std::chrono::seconds(5 + rand()%5));
         Order* order = new Order(i+1);
