@@ -127,7 +127,7 @@ public:
 
         if (kitchen_access.try_lock())
         {
-            kitchen_access.lock();
+            
             if (ordersQueue.size() == 0 || ordersQueue[0] == nullptr)
             {
                 std::cout << "No orders." << std::endl;
