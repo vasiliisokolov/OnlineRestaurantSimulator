@@ -236,7 +236,7 @@ public:
                 {
                     std::cout << "No orders to delivery!" << std::endl;
                     distribution_access.unlock();
-                    std::this_thread::sleep_for(std::chrono::seconds(5));
+                    std::this_thread::sleep_for(std::chrono::seconds(30));
                     
                 }
 
@@ -254,7 +254,7 @@ public:
         
         for (int i = 0; i < delivery.size(); i++)
         {
-            deliveryCount++;
+            deliveryCount= delivery[i]->getNumber();
             std::cout << "Order #" << deliveryCount << ". " << delivery[i]->getDish() << " delivered!" << std::endl;
             
             delete delivery[i];
